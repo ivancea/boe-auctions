@@ -6,7 +6,7 @@ using System.Globalization;
 
 namespace BoeAuctions;
 
-public class Client : IDisposable
+public partial class Client : IDisposable
 {
     private enum Tab
     {
@@ -146,279 +146,6 @@ public class Client : IDisposable
         return auction;
     }
 
-    private static readonly IDictionary<string, Tab> _tabs = new Dictionary<string, Tab>()
-    {
-        { "Información general", Tab.GeneralInformation },
-        { "Autoridad gestora", Tab.Authority },
-        { "Bienes", Tab.Goods },
-        { "Lotes", Tab.Goods },
-        { "Relacionados", Tab.Related },
-        { "Pujas", Tab.Bids },
-    };
-
-    private static readonly IDictionary<string, Action<string, Auction, AuctionLot>> _generalInformationReaders = new Dictionary<string, Action<string, Auction, AuctionLot>>() {
-        { "Identificador", (data, auction, auctionLot) => {} },
-        { "Tipo de subasta", (data, auction, auctionLot) => auction.Type = data },
-        { "Fecha de inicio", (data, auction, auctionLot) => auction.StartDate = ParseDate(data) },
-        { "Fecha de conclusión", (data, auction, auctionLot) => auction.EndDate = ParseDate(data) },
-        { "Cantidad reclamada", (data, auction, auctionLot) => auction.ClaimedAmount = ParseEuros(data) },
-        { "Forma adjudicación", (data, auction, auctionLot) => auction.AwardProcedure = data },
-        { "Anuncio BOE", (data, auction, auctionLot) => auction.BoeAnnouncementId = data },
-        { "Valor subasta", (data, auction, auctionLot) => auctionLot.Value = ParseEuros(data) },
-        { "Tasación", (data, auction, auctionLot) => auctionLot.Valuation = ParseEuros(data) },
-        { "Puja mínima", (data, auction, auctionLot) => auctionLot.MinimumBid = data == "Sin puja mínima" ? null : ParseEuros(data) },
-        { "Tramos entre pujas", (data, auction, auctionLot) => auctionLot.BidIncrement = ParseEuros(data) },
-        { "Importe del depósito", (data, auction, auctionLot) => auctionLot.Deposit = ParseEuros(data) },
-    };
-
-    private async Task<ISet<Tab>> LoadGeneralInformationAsync(string auctionId, Auction auction)
-    {
-        var html = await LoadHtml($"https://subastas.boe.es/detalleSubasta.php?ver=1&idSub={auctionId}");
-
-        var tabLinks = html.DocumentNode.SelectNodes("//div[@id='tabs']/ul/li/a");
-
-        var tabs = new HashSet<Tab>();
-
-        foreach (var tabLink in tabLinks)
-        {
-            var tabText = HttpUtility.HtmlDecode(tabLink.InnerText);
-
-            if (_tabs.TryGetValue(tabText, out var tab))
-            {
-                tabs.Add(tab);
-            }
-            else
-            {
-                Console.WriteLine($"Unknown tab: {tabText}");
-            }
-        }
-
-        var rows = html.DocumentNode.SelectNodes("//div[@id='idBloqueDatos1']//table//tr");
-
-        var auctionLot = new AuctionLot()
-        {
-            AuctionId = auction.Id,
-            Auction = auction,
-            Id = 1
-        };
-
-        var multipleLots = false;
-
-        foreach (var row in rows)
-        {
-            var header = HttpUtility.HtmlDecode(row.SelectSingleNode("th")?.InnerText.Trim());
-            var data = HttpUtility.HtmlDecode(row.SelectSingleNode("td")?.InnerText.Trim());
-
-            if (header == null || data == null)
-            {
-                Console.WriteLine("No headers found in auction {0}", auction.Id);
-                continue;
-            }
-
-            if (header == "Lotes")
-            {
-                multipleLots = data != "Sin lotes";
-            }
-            else if (_generalInformationReaders.TryGetValue(header, out var reader))
-            {
-                reader(data, auction, auctionLot);
-            }
-            else
-            {
-                Console.WriteLine("Unknown header '{0}' in auction {1}", header, auction.Id);
-            }
-        }
-
-        if (!multipleLots)
-        {
-            auction.Lots.Add(auctionLot);
-        }
-
-        return tabs;
-    }
-
-    private static readonly IDictionary<string, Action<string, AuctionAuthority>> _auctionAuthorityReaders = new Dictionary<string, Action<string, AuctionAuthority>>() {
-        { "Código", (data, authority) => authority.Code = data },
-        { "Descripción", (data, authority) => authority.Description = data },
-        { "Dirección", (data, authority) => authority.Address = data },
-        { "Teléfono", (data, authority) => authority.Phone = data },
-        { "Fax", (data, authority) => authority.Fax = data },
-        { "Correo electrónico", (data, authority) => authority.Email = data },
-    };
-
-    private async Task LoadAuthorityAsync(string auctionId, Auction auction)
-    {
-        var html = await LoadHtml($"https://subastas.boe.es/detalleSubasta.php?ver=2&idSub={auctionId}");
-        var rows = html.DocumentNode.SelectNodes("//div[@id='idBloqueDatos2']//table//tr");
-
-        auction.Authority = new AuctionAuthority();
-
-        foreach (var row in rows)
-        {
-            var header = HttpUtility.HtmlDecode(row.SelectSingleNode("th")?.InnerText.Trim());
-            var data = HttpUtility.HtmlDecode(row.SelectSingleNode("td")?.InnerText.Trim());
-
-            if (header == null || data == null)
-            {
-                Console.WriteLine("No headers found in auction {0}", auction.Id);
-                continue;
-            }
-
-            if (_auctionAuthorityReaders.TryGetValue(header, out var reader))
-            {
-                reader(data, auction.Authority);
-            }
-            else
-            {
-                Console.WriteLine("Unknown header '{0}' in auction {1}", header, auction.Id);
-            }
-        }
-    }
-
-    private static readonly IDictionary<string, Action<string, AuctionRelatedPerson>> _relatedPersonReaders = new Dictionary<string, Action<string, AuctionRelatedPerson>>() {
-        { "Nombre", (data, related) => related.Name = data },
-        { "NIF", (data, related) => related.Nif = data },
-        { "Dirección", (data, related) => related.Address = data },
-        { "Localidad", (data, related) => related.Locality = data },
-        { "Provincia", (data, related) => related.Province = data },
-        { "País", (data, related) => related.Country = data },
-    };
-
-    private async Task LoadRelatedPeopleAsync(string auctionId, Auction auction)
-    {
-        var html = await LoadHtml($"https://subastas.boe.es/detalleSubasta.php?ver=4&idSub={auctionId}");
-
-        LoadCreditor(html, auction);
-        LoadAdministrator(html, auction);
-
-        if (auction.Creditor is null && auction.Administrator is null)
-        {
-            Console.WriteLine("No creditor nor administrator found in auction {0}", auction.Id);
-            return;
-        }
-    }
-
-    private static void LoadCreditor(HtmlDocument html, Auction auction)
-    {
-        var rows = html.DocumentNode.SelectNodes("//div[@id='idBloqueDatos4']//table//tr");
-
-        if (rows is null)
-        {
-            return;
-        }
-
-        auction.Creditor = new AuctionRelatedPerson();
-
-        foreach (var row in rows)
-        {
-            var header = HttpUtility.HtmlDecode(row.SelectSingleNode("th")?.InnerText.Trim());
-            var data = HttpUtility.HtmlDecode(row.SelectSingleNode("td")?.InnerText.Trim());
-
-            if (header == null || data == null)
-            {
-                Console.WriteLine("No headers found in auction {0}", auction.Id);
-                continue;
-            }
-
-            if (_relatedPersonReaders.TryGetValue(header, out var reader))
-            {
-                reader(data, auction.Creditor);
-            }
-            else
-            {
-                Console.WriteLine("Unknown header '{0}' in auction {1}", header, auction.Id);
-            }
-        }
-    }
-
-    private static void LoadAdministrator(HtmlDocument html, Auction auction)
-    {
-        var rows = html.DocumentNode.SelectNodes("//div[@id='idBloqueDatos7']//table//tr");
-
-        if (rows is null)
-        {
-            return;
-        }
-
-        auction.Administrator = new AuctionRelatedPerson();
-
-        foreach (var row in rows)
-        {
-            var header = HttpUtility.HtmlDecode(row.SelectSingleNode("th")?.InnerText.Trim());
-            var data = HttpUtility.HtmlDecode(row.SelectSingleNode("td")?.InnerText.Trim());
-
-            if (header == null || data == null)
-            {
-                Console.WriteLine("No headers found in auction {0}", auction.Id);
-                continue;
-            }
-
-            if (_relatedPersonReaders.TryGetValue(header, out var reader))
-            {
-                reader(data, auction.Administrator);
-            }
-            else
-            {
-                Console.WriteLine("Unknown header '{0}' in auction {1}", header, auction.Id);
-            }
-        }
-    }
-
-    private async Task LoadLotsAsync(string auctionId, Auction auction)
-    {
-        var html = await LoadHtml($"https://subastas.boe.es/detalleSubasta.php?ver=3&idSub={auctionId}");
-
-        var tabs = html.DocumentNode.SelectNodes("//div[@id='tabsver']//ul//li//a");
-
-        if (tabs is not null)
-        {
-            var tabIds = tabs
-                .Where(tab => tab.Id.StartsWith("idTabLote"))
-                .Select(tab => tab.Id.Substring("idTabLote".Length))
-                .Select(int.Parse)
-                .ToList();
-
-            var lot = new AuctionLot() {
-                AuctionId = auction.Id,
-                Auction = auction,
-                Id = tabIds[0]
-            };
-            auction.Lots.Add(lot);
-
-            LoadLot(html, auction, lot);
-
-            foreach (var tabId in tabIds.Skip(1))
-            {
-                html = await LoadHtml($"https://subastas.boe.es/detalleSubasta.php?ver=3&idSub={auctionId}&idLote={tabId}");
-
-                lot = new AuctionLot() {
-                    AuctionId = auction.Id,
-                    Auction = auction,
-                    Id = tabId
-                };
-                auction.Lots.Add(lot);
-
-                LoadLot(html, auction, lot);
-            }
-        } else {
-            LoadLot(html, auction, auction.Lots.First());
-            // TODO: Fill existing lot
-        }
-    }
-
-    private static void LoadLot(HtmlDocument html, Auction auction, AuctionLot lot)
-    {
-        var goodTypeElement = html.DocumentNode.SelectSingleNode("//div[@id='idBloqueDatos3']//h4");
-
-        var goodType = HttpUtility.HtmlDecode(goodTypeElement?.InnerText.Trim())?.Split('-').Last().Trim();
-        
-        var summaryElement = html.DocumentNode.SelectSingleNode("//div[@id='idBloqueDatos3']//div[contains(@class, 'caja')]");
-
-        var summary = HttpUtility.HtmlDecode(summaryElement?.InnerText.Trim());
-
-        Console.WriteLine("Good type in {0}/{1}: {2}", auction.Id, lot.Id, goodType);
-    }
-
     private static decimal? ParseEuros(string data)
     {
         if (data.StartsWith("Ver ") || data == "No consta" || data == "Sin tramos")
@@ -435,7 +162,30 @@ public class Client : IDisposable
         return result;
     }
 
-    private static DateTime? ParseDate(string data)
+    private static readonly ISet<string> _trueValues = new HashSet<string>() {
+        "Sí",
+    };
+
+    private static readonly ISet<string> _falseValues = new HashSet<string>() {
+        "No", "No consta"
+    };
+
+    private static bool? ParseBool(string data)
+    {
+        if (_trueValues.Contains(data))
+        {
+            return true;
+        }
+        if (_falseValues.Contains(data))
+        {
+            return false;
+        }
+
+        Console.WriteLine("Could not parse '{0}' as bool", data);
+        return null;
+    }
+
+    private static DateTime? ParseDateTime(string data)
     {
         var isoLabelIndex = data.IndexOf("ISO:");
 
@@ -454,6 +204,17 @@ public class Client : IDisposable
         }
 
         return result.ToUniversalTime();
+    }
+
+    private static DateOnly? ParseDate(string data)
+    {
+        if (!DateOnly.TryParse(data, out var result))
+        {
+            Console.WriteLine("Could not parse '{0}' as date", data);
+            return null;
+        }
+
+        return result;
     }
 
     private async Task<HtmlDocument> LoadHtml(string url)

@@ -11,7 +11,10 @@ try
 
     using var semaphore = new SemaphoreSlim(2);
 
-    var auctionTasks = await client.ListAsync().Take(20)
+    var seenIds = new HashSet<string>();
+
+    var auctionTasks = await client.ListAsync()
+        .Where(id => seenIds.Add(id.Item2))
         .SelectAwait(async id =>
         {
             await semaphore.WaitAsync();

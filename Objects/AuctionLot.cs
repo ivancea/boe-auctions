@@ -12,11 +12,13 @@ public class AuctionLot
 
     public int? Id { get; set; }
 
+    public decimal? ClaimedAmount { get; set; }
+
     public decimal? Value { get; set; }
 
     public decimal? Valuation { get; set; }
 
-    public decimal? Deposit { get; set; }
+    public decimal? DepositAmount { get; set; }
 
     public decimal? MinimumBid { get; set; }
 
@@ -43,19 +45,37 @@ public class AuctionLot
 
     public string? Province { get; set; }
 
+    public decimal? Area { get; set; }
+
+    public decimal? Quota { get; set; }
+
+    public string? RegistryReference { get; set; }
+
     public bool? HabitualResidence { get; set; }
 
     public string? PossessoryStatus { get; set; }
 
     public string? Visitable { get; set; }
 
-    public bool? Burdens { get; set; }
+    public string? Burdens { get; set; }
 
     public string? RegistryInscription { get; set; }
 
     public string? JuridicTitle { get; set; }
 
     public string? RegistrationPlate { get; set; }
+
+    public string? Brand { get; set; }
+
+    public string? Model { get; set; }
+
+    public string? FrameNumber { get; set; }
+
+    public DateOnly? RegistrationDate { get; set; }
+
+    public DateOnly? AcquisitionDate { get; set; }
+
+    public string? Deposit { get; set; }
 
     public string? AdditionalInformation { get; set; }
 }

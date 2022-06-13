@@ -12,8 +12,8 @@ public class AuctionsContext : DbContext
         _connectionString = connectionString;
     }
 
-    public DbSet<Auction> Auctions { get; set; }
-    public DbSet<AuctionLot> Lots { get; set; }
+    public DbSet<Auction> Auctions { get; set; } = null!;
+    public DbSet<AuctionLot> Lots { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

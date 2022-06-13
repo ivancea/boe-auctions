@@ -15,8 +15,6 @@ public class Auction
 
     public DateTime? EndDate { get; set; }
 
-    public decimal? ClaimedAmount { get; set; }
-
     public string? AwardProcedure { get; set; }
 
     public string? BoeAnnouncementId { get; set; }
