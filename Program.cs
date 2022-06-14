@@ -63,20 +63,6 @@ try
 
     await context.SaveChangesAsync();
 }
-/*catch (DbEntityValidationException e)
-{
-    Console.Error.WriteLine("Validation errors: ");
-
-    foreach (var eve in e.EntityValidationErrors)
-    {
-        Console.Error.WriteLine($"Entity of type \"{eve.Entry.Entity.GetType().Name}\" in state \"{eve.Entry.State}\" has the following validation errors:");
-
-        foreach (var ve in eve.ValidationErrors)
-        {
-            Console.Error.WriteLine($"- Property: \"{ve.PropertyName}\", Error: \"{ve.ErrorMessage}\"");
-        }
-    }
-}*/
 catch (Exception e)
 {
     Console.Error.WriteLine("Error saving data: " + e);
