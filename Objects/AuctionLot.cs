@@ -49,6 +49,10 @@ public class AuctionLot
 
     public decimal? Quota { get; set; }
 
+    public string? Parcel { get; set; }
+
+    public string? PlaceName { get; set; }
+
     public string? RegistryReference { get; set; }
 
     public bool? HabitualResidence { get; set; }

@@ -67,6 +67,8 @@ public partial class Client
         { "Provincia", (data, auctionLot) => auctionLot.Province = data },
         { "Superficie", (data, auctionLot) => auctionLot.Area = ParseEuros(data) },
         { "Cuota", (data, auctionLot) => auctionLot.Quota = ParseEuros(data) },
+        { "Parcela", (data, auctionLot) => auctionLot.Parcel = data },
+        { "Nombre paraje", (data, auctionLot) => auctionLot.PlaceName = data },
         { "Referencia Registral", (data, auctionLot) => auctionLot.RegistryReference = data },
         { "Vivienda habitual", (data, auctionLot) => auctionLot.HabitualResidence = ParseBool(data) },
         { "Situación posesoria", (data, auctionLot) => auctionLot.PossessoryStatus = data },
