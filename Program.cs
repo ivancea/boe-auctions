@@ -59,7 +59,7 @@ try
     // await context.Database.EnsureDeletedAsync();
     await context.Database.EnsureCreatedAsync();
 
-    context.Auctions.AddRange(auctions);
+    context.Auctions.UpdateRange(auctions);
 
     await context.SaveChangesAsync();
 }
