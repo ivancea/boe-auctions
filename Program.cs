@@ -1,5 +1,9 @@
 ﻿using BoeAuctions;
 using BoeAuctions.Objects;
+using dotenv.net;
+using dotenv.net.Utilities;
+
+DotEnv.Load();
 
 var auctions = new List<Auction>();
 
@@ -54,12 +58,12 @@ catch (Exception e)
 // Save in database
 try
 {
-    using var context = new AuctionsContext("Host=127.0.0.1;Username=postgres;Password=postgres;Database=postgres");
+    var connectionString = EnvReader.GetStringValue("POSTGRES_CONNECTION_STRING");
+    using var context = new AuctionsContext(connectionString);
 
-    // await context.Database.EnsureDeletedAsync();
     await context.Database.EnsureCreatedAsync();
 
-    context.Auctions.UpdateRange(auctions);
+    context.Auctions.AddRange(auctions);
 
     await context.SaveChangesAsync();
 }

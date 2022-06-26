@@ -2,5 +2,6 @@ bin
 obj
 
 .vscode
+.env
 
 data
