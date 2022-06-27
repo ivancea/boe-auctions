@@ -10,7 +10,7 @@ public class AuctionLot
 
     public Auction? Auction { get; set; }
 
-    public int? Id { get; set; }
+    public string? Id { get; set; }
 
     public decimal? ClaimedAmount { get; set; }
 

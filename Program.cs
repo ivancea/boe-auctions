@@ -39,6 +39,10 @@ try
                     Console.WriteLine($"{auctions.Count} auctions loaded...");
                 }
             }
+            catch (Exception e)
+            {
+                Console.Error.WriteLine($"Error Loading auction with ID '${id}': " + e);
+            }
             finally
             {
                 semaphore.Release();

@@ -59,7 +59,7 @@ public partial class Client
         {
             AuctionId = auction.Id,
             Auction = auction,
-            Id = 1
+            Id = "1"
         };
 
         var multipleLots = false;

@@ -16,8 +16,7 @@ public partial class Client
         {
             var tabIds = tabs
                 .Where(tab => tab.Id.StartsWith("idTabLote"))
-                .Select(tab => tab.Id.Substring("idTabLote".Length))
-                .Select(int.Parse)
+                .Select(tab => tab.Id.Substring("idTabLote".Length).Trim())
                 .ToList();
 
             var lot = new AuctionLot() {
