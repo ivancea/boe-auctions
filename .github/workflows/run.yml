@@ -9,6 +9,8 @@ on:
 jobs:
   run:
     runs-on: ubuntu-latest
+    env:
+      POSTGRES_CONNECTION_STRING: ${{ secrets.POSTGRES_CONNECTION_STRING }}
     steps:
     - uses: actions/checkout@v3
     - name: Setup .NET
