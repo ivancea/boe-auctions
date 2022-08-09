@@ -42,6 +42,11 @@ try
 
                 Console.WriteLine("Done: " + auction.Id);
 
+                foreach (var lot in auction.Lots.DistinctBy(lot => (lot.Type, lot.Province)))
+                {
+                    Console.WriteLine($" - {lot.Type} at {lot.Province}");
+                }
+
                 auctions.Add(auction);
 
                 if (auctions.Count % 50 == 0)
