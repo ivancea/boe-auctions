@@ -11,6 +11,8 @@ public class Auction
 
     public string? Type { get; set; }
 
+    public string? RecordAccount { get; set; }
+
     public DateTime? StartDate { get; set; }
 
     public DateTime? EndDate { get; set; }

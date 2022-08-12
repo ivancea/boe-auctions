@@ -2,9 +2,10 @@
 using BoeAuctions.Objects;
 using dotenv.net;
 using dotenv.net.Utilities;
+using Telegram.Bot;
+using Telegram.Bot.Types.Enums;
 
 DotEnv.Load();
-
 
 try
 {
@@ -69,12 +70,74 @@ try
 
     Console.WriteLine($"{auctions.Count} auctions loaded in {(DateTime.Now - startTime).TotalSeconds} seconds");
 
-    // Save data
-    context.Auctions.AddRange(auctions);
-
-    await context.SaveChangesAsync();
+    await SaveInDatabase(context, auctions);
+    await SendToTelegram(auctions);
 }
 catch (Exception e)
 {
     Console.Error.WriteLine("Error: " + e);
+}
+
+static async Task SaveInDatabase(AuctionsContext context, IEnumerable<Auction> auctions)
+{
+    try {
+        context.Auctions.AddRange(auctions);
+
+        await context.SaveChangesAsync();
+    } catch (Exception e) {
+        Console.Error.WriteLine("Error in Database: " + e);
+    }
+}
+
+static async Task SendToTelegram(IEnumerable<Auction> auctions) {
+    if (!EnvReader.HasValue("TELEGRAM_BOT_TOKEN")) {
+        Console.WriteLine("### Telegram disabled (No token) ###");
+        return;
+    }
+    if (!EnvReader.HasValue("TELEGRAM_CHAT_ID")) {
+        Console.WriteLine("### Telegram disabled (No chat ID) ###");
+        return;
+    }
+
+    const string AUCTION_URL = "https://subastas.boe.es/detalleSubasta.php?idSub=";
+
+    try {
+        var telegramToken = EnvReader.GetStringValue("TELEGRAM_BOT_TOKEN");
+        var chatId = EnvReader.GetStringValue("TELEGRAM_CHAT_ID");
+        
+        var botClient = new TelegramBotClient(telegramToken);
+
+        await auctions.ToAsyncEnumerable().ForEachAwaitAsync(async auction => {
+            var message =
+                $"<b>Subasta {AUCTION_URL}{auction.Id}</b>" +
+                $"\nFechas: {auction.StartDate:dd/MM/yyyy} - {auction.EndDate:dd/MM/yyyy}";
+
+            foreach (var lot in auction.Lots) {
+                message +=
+                    $"\n\n<b>{lot.Type} en {lot.Province ?? "<Sin provincia>"}</b>" +
+                    $"\n - Valor de la subasta: {lot.Value:N0}€" +
+                    $"\n - Depósito: {lot.DepositAmount:N0}€" +
+                    $"\n - Descripción: {(lot.Description == null ? "<Sin descripción>" : TruncateDescription(lot.Description))}";
+            }
+
+            await botClient.SendTextMessageAsync(
+                chatId: chatId,
+                text: message,
+                parseMode: ParseMode.Html
+            );
+        });
+
+    } catch (Exception e) {
+        Console.Error.WriteLine("Error in Telegram: " + e);
+    }
+}
+
+static string TruncateDescription(string description) {
+    const int LIMIT = 100;
+
+    if (description.Length > LIMIT) {
+        return string.Concat(description.AsSpan(0, LIMIT - 3), "...");
+    }
+
+    return description;
 }

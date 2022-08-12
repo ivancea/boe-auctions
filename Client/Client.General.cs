@@ -1,5 +1,4 @@
 using System.Web;
-using HtmlAgilityPack;
 using BoeAuctions.Objects;
 
 namespace BoeAuctions;
@@ -19,6 +18,7 @@ public partial class Client
     private static readonly IDictionary<string, Action<string, Auction, AuctionLot>> _generalInformationReaders = new Dictionary<string, Action<string, Auction, AuctionLot>>() {
         { "Identificador", (data, auction, auctionLot) => {} },
         { "Tipo de subasta", (data, auction, auctionLot) => auction.Type = data },
+        { "Cuenta expediente", (data, auction, auctionLot) => auction.RecordAccount = data },
         { "Fecha de inicio", (data, auction, auctionLot) => auction.StartDate = ParseDateTime(data) },
         { "Fecha de conclusión", (data, auction, auctionLot) => auction.EndDate = ParseDateTime(data) },
         { "Forma adjudicación", (data, auction, auctionLot) => auction.AwardProcedure = data },
