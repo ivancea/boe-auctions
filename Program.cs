@@ -127,7 +127,7 @@ static async Task SendToTelegram(IEnumerable<Auction> auctions) {
             );
 
             // Avoid reaching bot limits
-            await Task.Delay(250);
+            await Task.Delay(1000);
         };
     } catch (Exception e) {
         Console.Error.WriteLine("Error in Telegram: " + e);
