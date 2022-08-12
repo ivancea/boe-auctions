@@ -2,7 +2,7 @@
 using BoeAuctions.Objects;
 using dotenv.net;
 using dotenv.net.Utilities;
-using MoreLinq;
+using MoreLinq.Extensions;
 using Telegram.Bot;
 using Telegram.Bot.Types.Enums;
 
@@ -44,7 +44,7 @@ try
 
                 Console.WriteLine("Done: " + auction.Id);
 
-                foreach (var lot in auction.Lots.DistinctBy(lot => (lot.Type, lot.Province)))
+                foreach (var lot in auction.Lots)
                 {
                     Console.WriteLine($" - {lot.Type} at {lot.Province}");
                 }
@@ -108,7 +108,7 @@ static async Task SendToTelegram(IEnumerable<Auction> auctions) {
         
         var botClient = new TelegramBotClient(telegramToken);
 
-        var auctionBatches = auctions.OrderBy(a => a.EndDate).Batch(20).ToList()
+        var auctionBatches = auctions.OrderBy(a => a.EndDate).Batch(20).ToList();
 
         for (var i = 0; i < auctionBatches.Count; i++) {
             foreach(var auction in auctionBatches[i]) {
