@@ -111,7 +111,7 @@ static async Task SendToTelegram(IEnumerable<Auction> auctions) {
         var auctionBatches = auctions.OrderBy(a => a.EndDate).Batch(20).ToList()
 
         for (var i = 0; i < auctionBatches.Count; i++) {
-            foreach(var auction in auctionsBatch) {
+            foreach(var auction in auctionBatches[i]) {
                 var message =
                     $"<b>Subasta {AUCTION_URL}{auction.Id}</b>" +
                     $"\nFechas: {auction.StartDate:dd/MM/yyyy} - {auction.EndDate:dd/MM/yyyy}";
