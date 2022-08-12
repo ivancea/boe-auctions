@@ -2,6 +2,7 @@
 using BoeAuctions.Objects;
 using dotenv.net;
 using dotenv.net.Utilities;
+using MoreLinq;
 using Telegram.Bot;
 using Telegram.Bot.Types.Enums;
 
@@ -107,28 +108,37 @@ static async Task SendToTelegram(IEnumerable<Auction> auctions) {
         
         var botClient = new TelegramBotClient(telegramToken);
 
-        foreach(var auction in auctions.OrderBy(a => a.EndDate)) {
-            var message =
-                $"<b>Subasta {AUCTION_URL}{auction.Id}</b>" +
-                $"\nFechas: {auction.StartDate:dd/MM/yyyy} - {auction.EndDate:dd/MM/yyyy}";
+        var auctionBatches = auctions.OrderBy(a => a.EndDate).Batch(20).ToList()
 
-            foreach (var lot in auction.Lots) {
-                message +=
-                    $"\n\n<b>{lot.Type} en {lot.Province ?? "<Sin provincia>"}</b>" +
-                    $"\n - Valor de la subasta: {lot.Value:N0}€" +
-                    $"\n - Depósito: {lot.DepositAmount:N0}€" +
-                    $"\n - Descripción: {(lot.Description == null ? "<Sin descripción>" : TruncateDescription(lot.Description))}";
+        for (var i = 0; i < auctionBatches.Count; i++) {
+            foreach(var auction in auctionsBatch) {
+                var message =
+                    $"<b>Subasta {AUCTION_URL}{auction.Id}</b>" +
+                    $"\nFechas: {auction.StartDate:dd/MM/yyyy} - {auction.EndDate:dd/MM/yyyy}";
+
+                foreach (var lot in auction.Lots) {
+                    message +=
+                        $"\n\n<b>{lot.Type} en {lot.Province ?? "<Sin provincia>"}</b>" +
+                        $"\n - Valor de la subasta: {lot.Value:N0}€" +
+                        $"\n - Depósito: {lot.DepositAmount:N0}€" +
+                        $"\n - Descripción: {(lot.Description == null ? "<Sin descripción>" : TruncateDescription(lot.Description))}";
+                }
+
+                await botClient.SendTextMessageAsync(
+                    chatId: chatId,
+                    text: message,
+                    parseMode: ParseMode.Html
+                );
+
+                // Avoid reaching bot limits per second
+                await Task.Delay(250);
             }
 
-            await botClient.SendTextMessageAsync(
-                chatId: chatId,
-                text: message,
-                parseMode: ParseMode.Html
-            );
-
-            // Avoid reaching bot limits
-            await Task.Delay(1000);
-        };
+            if (i < auctionBatches.Count - 1) {
+                // Avoid reaching bot limits per minute
+                await Task.Delay(60000);
+            }
+        }
     } catch (Exception e) {
         Console.Error.WriteLine("Error in Telegram: " + e);
     }
