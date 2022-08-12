@@ -107,7 +107,7 @@ static async Task SendToTelegram(IEnumerable<Auction> auctions) {
         
         var botClient = new TelegramBotClient(telegramToken);
 
-        foreach(var auction in auctions) {
+        foreach(var auction in auctions.OrderBy(a => a.EndDate)) {
             var message =
                 $"<b>Subasta {AUCTION_URL}{auction.Id}</b>" +
                 $"\nFechas: {auction.StartDate:dd/MM/yyyy} - {auction.EndDate:dd/MM/yyyy}";
