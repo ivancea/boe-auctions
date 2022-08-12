@@ -127,7 +127,8 @@ static async Task SendToTelegram(IEnumerable<Auction> auctions) {
                 await botClient.SendTextMessageAsync(
                     chatId: chatId,
                     text: message,
-                    parseMode: ParseMode.Html
+                    parseMode: ParseMode.Html,
+                    disableWebPagePreview: true
                 );
 
                 // Avoid reaching bot limits per second
