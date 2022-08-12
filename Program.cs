@@ -86,7 +86,7 @@ static async Task SaveInDatabase(AuctionsContext context, IEnumerable<Auction> a
 
         await context.SaveChangesAsync();
     } catch (Exception e) {
-        Console.Error.WriteLine("Error in Database: " + e);
+        throw new Exception("Database error", e);
     }
 }
 
@@ -141,7 +141,7 @@ static async Task SendToTelegram(IEnumerable<Auction> auctions) {
             }
         }
     } catch (Exception e) {
-        Console.Error.WriteLine("Error in Telegram: " + e);
+        throw new Exception("Telegram error", e);
     }
 }
 
