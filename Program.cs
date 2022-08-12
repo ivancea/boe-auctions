@@ -107,7 +107,7 @@ static async Task SendToTelegram(IEnumerable<Auction> auctions) {
         
         var botClient = new TelegramBotClient(telegramToken);
 
-        await auctions.ToAsyncEnumerable().ForEachAwaitAsync(async auction => {
+        foreach(var auction in auctions) {
             var message =
                 $"<b>Subasta {AUCTION_URL}{auction.Id}</b>" +
                 $"\nFechas: {auction.StartDate:dd/MM/yyyy} - {auction.EndDate:dd/MM/yyyy}";
@@ -125,8 +125,10 @@ static async Task SendToTelegram(IEnumerable<Auction> auctions) {
                 text: message,
                 parseMode: ParseMode.Html
             );
-        });
 
+            // Avoid reaching bot limits
+            await Task.Delay(250);
+        };
     } catch (Exception e) {
         Console.Error.WriteLine("Error in Telegram: " + e);
     }
