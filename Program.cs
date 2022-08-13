@@ -1,4 +1,5 @@
-﻿using BoeAuctions;
+﻿using System.Web;
+using BoeAuctions;
 using BoeAuctions.Objects;
 using dotenv.net;
 using dotenv.net.Utilities;
@@ -121,7 +122,7 @@ static async Task SendToTelegram(IEnumerable<Auction> auctions) {
                         $"\n\n<b>{lot.Type} en {lot.Province ?? "<Sin provincia>"}</b>" +
                         $"\n - Valor de la subasta: {lot.Value:N0}€" +
                         $"\n - Depósito: {lot.DepositAmount:N0}€" +
-                        $"\n - Descripción: {(lot.Description == null ? "<Sin descripción>" : TruncateDescription(lot.Description))}";
+                        $"\n - Descripción: {(lot.Description == null ? "<Sin descripción>" : HttpUtility.HtmlEncode(TruncateDescription(lot.Description)))}";
                 }
 
                 await botClient.SendTextMessageAsync(
