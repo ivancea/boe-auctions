@@ -1,5 +1,6 @@
 using BoeAuctions.Objects;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace BoeAuctions;
 
@@ -17,7 +18,13 @@ public class AuctionsContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<AuctionLot>()
+        modelBuilder
+            .Entity<Auction>()
+            .Property(a => a.Status)
+            .HasConversion(new EnumToStringConverter<AuctionStatus>());
+
+        modelBuilder
+            .Entity<AuctionLot>()
             .HasKey(l => new { l.AuctionId, l.Id });
     }
 
