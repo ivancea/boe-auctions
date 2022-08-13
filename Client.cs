@@ -32,9 +32,9 @@ public partial class Client : IDisposable
     /// Fetches the links of the items
     /// </summary>
     /// <returns>The item references, to be used in further calls</returns>
-    public async IAsyncEnumerable<(AuctionStatus, string)> ListAsync()
+    public async IAsyncEnumerable<(AuctionStatus, string)> ListAsync(IEnumerable<AuctionStatus>? statuses = null)
     {
-        foreach (var auctionStatus in Enum.GetValues<AuctionStatus>())
+        foreach (var auctionStatus in statuses ?? new[]{ AuctionStatus.Active })
         {
             Console.WriteLine("Obtaining auctions with status {0}", auctionStatus);
             var query = new Dictionary<string, string>() {
