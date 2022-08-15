@@ -113,27 +113,31 @@ static async Task SendToTelegram(IEnumerable<Auction> auctions) {
 
         for (var i = 0; i < auctionBatches.Count; i++) {
             foreach(var auction in auctionBatches[i]) {
-                var message =
-                    $"<b>Subasta {AUCTION_URL}{auction.Id}</b>" +
-                    $"\nFechas: {auction.StartDate:dd/MM/yyyy} - {auction.EndDate:dd/MM/yyyy}";
+                try {
+                    var message =
+                        $"<b>Subasta {AUCTION_URL}{auction.Id}</b>" +
+                        $"\nFechas: {auction.StartDate:dd/MM/yyyy} - {auction.EndDate:dd/MM/yyyy}";
 
-                foreach (var lot in auction.Lots) {
-                    message +=
-                        $"\n\n<b>{lot.Type} en {lot.Province ?? "<i>Sin provincia</i>"}</b>" +
-                        $"\n - Valor de la subasta: {lot.Value:N0}€" +
-                        $"\n - Depósito: {lot.DepositAmount:N0}€" +
-                        $"\n - Descripción: {(lot.Description == null ? "<i>Sin descripción</i>" : HttpUtility.HtmlEncode(TruncateDescription(lot.Description)))}";
+                    foreach (var lot in auction.Lots) {
+                        message +=
+                            $"\n\n<b>{lot.Type} en {lot.Province ?? "<i>Sin provincia</i>"}</b>" +
+                            $"\n - Valor de la subasta: {lot.Value:N0}€" +
+                            $"\n - Depósito: {lot.DepositAmount:N0}€" +
+                            $"\n - Descripción: {(lot.Description == null ? "<i>Sin descripción</i>" : HttpUtility.HtmlEncode(TruncateDescription(lot.Description)))}";
+                    }
+
+                    await botClient.SendTextMessageAsync(
+                        chatId: chatId,
+                        text: message,
+                        parseMode: ParseMode.Html,
+                        disableWebPagePreview: true
+                    );
+
+                    // Avoid reaching bot limits per second
+                    await Task.Delay(250);
+                } catch (Exception e) {
+                    throw new Exception($"Telegram error in auction ${auction.Id}", e);
                 }
-
-                await botClient.SendTextMessageAsync(
-                    chatId: chatId,
-                    text: message,
-                    parseMode: ParseMode.Html,
-                    disableWebPagePreview: true
-                );
-
-                // Avoid reaching bot limits per second
-                await Task.Delay(250);
             }
 
             if (i < auctionBatches.Count - 1) {
