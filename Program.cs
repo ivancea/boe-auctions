@@ -109,23 +109,47 @@ static async Task SendToTelegram(IEnumerable<Auction> auctions) {
         
         var botClient = new TelegramBotClient(telegramToken);
 
-        var auctionBatches = auctions.OrderBy(a => a.EndDate).Batch(20).ToList();
-
-        for (var i = 0; i < auctionBatches.Count; i++) {
-            foreach(var auction in auctionBatches[i]) {
-                try {
-                    var message =
+        var messageBatches = auctions
+            .OrderBy(a => a.EndDate)
+            .Select(auction => {
+                var message =
                         $"<b>Subasta {AUCTION_URL}{auction.Id}</b>" +
                         $"\nFechas: {auction.StartDate:dd/MM/yyyy} - {auction.EndDate:dd/MM/yyyy}";
 
-                    foreach (var lot in auction.Lots) {
-                        message +=
-                            $"\n\n<b>{lot.Type} en {lot.Province ?? "<i>Sin provincia</i>"}</b>" +
-                            $"\n - Valor de la subasta: {lot.Value:N0}€" +
-                            $"\n - Depósito: {lot.DepositAmount:N0}€" +
-                            $"\n - Descripción: {(lot.Description == null ? "<i>Sin descripción</i>" : HttpUtility.HtmlEncode(TruncateDescription(lot.Description)))}";
-                    }
+                foreach (var lot in auction.Lots) {
+                    message +=
+                        $"\n\n<b>{lot.Type} en {lot.Province ?? "<i>Sin provincia</i>"}</b>" +
+                        $"\n - Valor de la subasta: {lot.Value:N0}€" +
+                        $"\n - Depósito: {lot.DepositAmount:N0}€" +
+                        $"\n - Descripción: {(lot.Description == null ? "<i>Sin descripción</i>" : HttpUtility.HtmlEncode(TruncateDescription(lot.Description)))}";
+                }
+                
+                return (auction, message);
+            })
+            .SelectMany((data) => {
+                // Break long messages in parts
+                if (data.message.Length <= 4096) {
+                    return new[] { data };
+                }
 
+                // Chunk size, with a little extra for the "(1 of N)" part
+                var chunkSize = 4050;
+
+                var partCount = (int) Math.Ceiling((double) data.message.Length / chunkSize);
+
+                return Enumerable.Range(0, partCount)
+                    .Select(i => {
+                        var start = i * chunkSize;
+                        var part = data.message.Substring(start, Math.Min(chunkSize, data.message.Length - start));
+                        return (data.auction, $"<b><i>({i + 1} de {partCount})</i></b>\n{part}");
+                    });
+            })
+            .Batch(20)
+            .ToList();
+
+        for (var i = 0; i < messageBatches.Count; i++) {
+            foreach(var (auction, message) in messageBatches[i]) {
+                try {
                     await botClient.SendTextMessageAsync(
                         chatId: chatId,
                         text: message,
@@ -136,11 +160,11 @@ static async Task SendToTelegram(IEnumerable<Auction> auctions) {
                     // Avoid reaching bot limits per second
                     await Task.Delay(250);
                 } catch (Exception e) {
-                    throw new Exception($"Telegram error in auction ${auction.Id}", e);
+                    throw new Exception($"Telegram error in auction {auction.Id}", e);
                 }
             }
 
-            if (i < auctionBatches.Count - 1) {
+            if (i < messageBatches.Count - 1) {
                 // Avoid reaching bot limits per minute
                 await Task.Delay(60000);
             }
