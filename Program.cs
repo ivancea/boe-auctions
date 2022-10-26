@@ -113,12 +113,12 @@ static async Task SendToTelegram(IEnumerable<Auction> auctions) {
             .OrderBy(a => a.EndDate)
             .Select(auction => {
                 var message =
-                        $"<b>Subasta {AUCTION_URL}{auction.Id}</b>" +
+                        $"<b>Subasta {HttpUtility.HtmlEncode(AUCTION_URL + auction.Id)}</b>" +
                         $"\nFechas: {auction.StartDate:dd/MM/yyyy} - {auction.EndDate:dd/MM/yyyy}";
 
                 foreach (var lot in auction.Lots) {
                     message +=
-                        $"\n\n<b>{lot.Type} en {lot.Province ?? "<i>Sin provincia</i>"}</b>" +
+                        $"\n\n<b>{lot.Type} en {HttpUtility.HtmlEncode(lot.Province) ?? "<i>Sin provincia</i>"}</b>" +
                         $"\n - Valor de la subasta: {lot.Value:N0}€" +
                         $"\n - Depósito: {lot.DepositAmount:N0}€" +
                         $"\n - Descripción: {(lot.Description == null ? "<i>Sin descripción</i>" : HttpUtility.HtmlEncode(TruncateDescription(lot.Description)))}";
@@ -160,7 +160,7 @@ static async Task SendToTelegram(IEnumerable<Auction> auctions) {
                     // Avoid reaching bot limits per second
                     await Task.Delay(250);
                 } catch (Exception e) {
-                    throw new Exception($"Telegram error in auction {auction.Id}", e);
+                    throw new Exception($"Telegram error in auction {auction.Id}, Message: {message}", e);
                 }
             }
 
