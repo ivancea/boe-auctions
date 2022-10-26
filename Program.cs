@@ -112,37 +112,54 @@ static async Task SendToTelegram(IEnumerable<Auction> auctions) {
         var messageBatches = auctions
             .OrderBy(a => a.EndDate)
             .Select(auction => {
-                var message =
+                var auctionPart =
                         $"<b>Subasta {HttpUtility.HtmlEncode(AUCTION_URL + auction.Id)}</b>" +
                         $"\nFechas: {auction.StartDate:dd/MM/yyyy} - {auction.EndDate:dd/MM/yyyy}";
+                
+                var lotParts = new List<String>();
 
                 foreach (var lot in auction.Lots) {
-                    message +=
+                    lotParts.Add(
                         $"\n\n<b>{lot.Type} en {HttpUtility.HtmlEncode(lot.Province) ?? "<i>Sin provincia</i>"}</b>" +
                         $"\n - Valor de la subasta: {lot.Value:N0}€" +
                         $"\n - Depósito: {lot.DepositAmount:N0}€" +
-                        $"\n - Descripción: {(lot.Description == null ? "<i>Sin descripción</i>" : HttpUtility.HtmlEncode(TruncateDescription(lot.Description)))}";
+                        $"\n - Descripción: {(lot.Description == null ? "<i>Sin descripción</i>" : HttpUtility.HtmlEncode(TruncateDescription(lot.Description)))}"
+                    );
                 }
                 
-                return (auction, message);
+                return (auction, auctionPart, lotParts);
             })
             .SelectMany((data) => {
-                // Break long messages in parts
-                if (data.message.Length <= 4096) {
-                    return new[] { data };
-                }
-
                 // Chunk size, with a little extra for the "(1 of N)" part
                 var chunkSize = 4050;
+                
+                var messages = new List<string>();
 
-                var partCount = (int) Math.Ceiling((double) data.message.Length / chunkSize);
+                messages.Add(data.auctionPart);
 
-                return Enumerable.Range(0, partCount)
-                    .Select(i => {
-                        var start = i * chunkSize;
-                        var part = data.message.Substring(start, Math.Min(chunkSize, data.message.Length - start));
-                        return (data.auction, $"<b><i>({i + 1} de {partCount})</i></b>\n{part}");
-                    });
+                for (int i=0; i<data.lotParts.Count; i++) {
+                    var currentPart = data.lotParts[i];
+
+                    if (messages.Last().Length + currentPart.Length > chunkSize) {
+                        // To avoid infinite loops
+                        if (data.auctionPart.Length + currentPart.Length > chunkSize) {
+                            throw new Exception($"Lot description too long: {data.auctionPart}{currentPart}");
+                        }
+
+                        i--;
+                        messages.Add(data.auctionPart);
+                    } else {
+                        messages[messages.Count - 1] += currentPart;
+                    }
+                }
+
+                if (messages.Count > 1) {
+                    for (int i=0; i<messages.Count; i++) {
+                        messages[i] = $"<b><i>({i + 1} de {messages.Count})</i></b> {messages[i]}";
+                    }
+                }
+
+                return messages;
             })
             .Batch(20)
             .ToList();
