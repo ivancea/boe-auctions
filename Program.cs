@@ -159,7 +159,7 @@ static async Task SendToTelegram(IEnumerable<Auction> auctions) {
                     }
                 }
 
-                return messages;
+                return messages.Select(messagePart => (data.auction, messagePart));
             })
             .Batch(20)
             .ToList();
