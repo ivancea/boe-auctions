@@ -122,7 +122,6 @@ static async Task SendToTelegram(IEnumerable<Auction> auctions) {
                     lotParts.Add(
                         $"\n\n<b>{lot.Type} en {HttpUtility.HtmlEncode(lot.Province) ?? "<i>Sin provincia</i>"}</b>" +
                         $"\n - Valor de la subasta: {lot.Value:N0}€" +
-                        $"\n - Depósito: {lot.DepositAmount:N0}€" +
                         $"\n - Descripción: {(lot.Description == null ? "<i>Sin descripción</i>" : HttpUtility.HtmlEncode(TruncateDescription(lot.Description)))}"
                     );
                 }
