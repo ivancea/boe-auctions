@@ -1,6 +1,6 @@
 using System.Web;
 using HtmlAgilityPack;
-using BoeAuctions.Objects;
+using BoeAuctions.Model.Objects;
 
 namespace BoeAuctions;
 

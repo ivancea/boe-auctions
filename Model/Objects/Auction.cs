@@ -1,7 +1,7 @@
 
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace BoeAuctions.Objects;
+namespace BoeAuctions.Model.Objects;
 
 public class Auction
 {
@@ -29,6 +29,8 @@ public class Auction
 
     [Column(TypeName = "jsonb")]
     public AuctionRelatedPerson? Administrator { get; set; }
+
+    public bool WasNotified { get; set; } = false;
 
 
     public ICollection<AuctionLot> Lots { get; set; } = new List<AuctionLot>();

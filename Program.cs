@@ -1,11 +1,11 @@
-﻿using System.Web;
-using BoeAuctions;
-using BoeAuctions.Objects;
+﻿using BoeAuctions;
+using BoeAuctions.Model;
+using BoeAuctions.Model.Objects;
+using BoeAuctions.Telegram;
 using dotenv.net;
 using dotenv.net.Utilities;
+using Microsoft.EntityFrameworkCore;
 using MoreLinq.Extensions;
-using Telegram.Bot;
-using Telegram.Bot.Types.Enums;
 
 DotEnv.Load();
 
@@ -17,20 +17,51 @@ try
 
     await context.Database.EnsureCreatedAsync();
 
-    // Load data
-    using var client = new Client();
+    Console.WriteLine("Loading existing auctions from database...");
+    var existingAuctionIds = await context.Auctions.Select(a => a.Id!).ToListAsync();
+    var nonNotifiedStoredAuctions = await context.Auctions
+        .Where(a => !a.WasNotified)
+        .Where(a => a.EndDate > DateTime.UtcNow)
+        .Include(a => a.Lots)
+        .ToListAsync();
+
     var startTime = DateTime.Now;
+
+    var newAuctions = await LoadAuctionsFromApi(existingAuctionIds);
+
+    Console.WriteLine($"{newAuctions.Count} auctions loaded in {(DateTime.Now - startTime).TotalSeconds} seconds. Saving them...");
+    await SaveInDatabase(context, newAuctions);
+
+    var nonNotifiedAuctions = newAuctions
+        .Concat(nonNotifiedStoredAuctions)
+        .OrderBy(a => a.EndDate)
+        .ToList();
+
+    Console.WriteLine($"Sending {nonNotifiedAuctions.Count} non-notified auctions to Telegram...");
+
+    await SendToTelegram(context, nonNotifiedAuctions);
+}
+catch (Exception e)
+{
+    Console.Error.WriteLine("Error: " + e);
+}
+
+static async Task<List<Auction>> LoadAuctionsFromApi(IEnumerable<string> existingIds)
+{
+    using var client = new Client();
 
     using var semaphore = new SemaphoreSlim(2);
 
     var seenIds = new HashSet<string>();
 
     // Add current auction IDs to seenIds, to ignore them
-    seenIds.UnionWith(context.Auctions.Select(a => a.Id!));
+    seenIds.UnionWith(existingIds);
 
     var auctions = new List<Auction>();
 
+    // Load all auctions not already in the DB
     var auctionTasks = await client.ListAsync()
+        .Take(12)
         .Where(id => seenIds.Add(id.Item2))
         .SelectAwait(async id =>
         {
@@ -70,132 +101,39 @@ try
 
     await Task.WhenAll(auctionTasks);
 
-    Console.WriteLine($"{auctions.Count} auctions loaded in {(DateTime.Now - startTime).TotalSeconds} seconds");
-
-    await SaveInDatabase(context, auctions);
-    await SendToTelegram(auctions);
-}
-catch (Exception e)
-{
-    Console.Error.WriteLine("Error: " + e);
+    return auctions;
 }
 
 static async Task SaveInDatabase(AuctionsContext context, IEnumerable<Auction> auctions)
 {
-    try {
+    try
+    {
         context.Auctions.AddRange(auctions);
 
         await context.SaveChangesAsync();
-    } catch (Exception e) {
+    }
+    catch (Exception e)
+    {
         throw new Exception("Database error", e);
     }
 }
 
-static async Task SendToTelegram(IEnumerable<Auction> auctions) {
-    if (!EnvReader.HasValue("TELEGRAM_BOT_TOKEN")) {
-        Console.WriteLine("### Telegram disabled (No token) ###");
-        return;
-    }
-    if (!EnvReader.HasValue("TELEGRAM_CHAT_ID")) {
-        Console.WriteLine("### Telegram disabled (No chat ID) ###");
-        return;
-    }
+static async Task SendToTelegram(AuctionsContext context, IEnumerable<Auction> auctions)
+{
+    var telegramClient = new TelegramClient();
+    
+    foreach (var auctionBatch in auctions.Batch(10))
+    {
+        // Update auctions as notified, to avoid not sending or resending on errors
+        var auctionIds = auctionBatch.Select(a => a.Id!).ToList();
+        Console.WriteLine($"Marking {string.Join(", ", auctionIds)} auctions as notified...");
+        await context.Auctions
+            .Where(a => auctionIds.Contains(a.Id!))
+            .ExecuteUpdateAsync(a => 
+                a.SetProperty(a => a.WasNotified, true)
+            );
 
-    const string AUCTION_URL = "https://subastas.boe.es/detalleSubasta.php?idSub=";
-
-    try {
-        var telegramToken = EnvReader.GetStringValue("TELEGRAM_BOT_TOKEN");
-        var chatId = EnvReader.GetStringValue("TELEGRAM_CHAT_ID");
-        
-        var botClient = new TelegramBotClient(telegramToken);
-
-        var messageBatches = auctions
-            .OrderBy(a => a.EndDate)
-            .Select(auction => {
-                var auctionPart =
-                        $"<b>Subasta {HttpUtility.HtmlEncode(AUCTION_URL + auction.Id)}</b>" +
-                        $"\nFechas: {auction.StartDate:dd/MM/yyyy} - {auction.EndDate:dd/MM/yyyy}";
-                
-                var lotParts = new List<String>();
-
-                foreach (var lot in auction.Lots) {
-                    lotParts.Add(
-                        $"\n\n<b>{lot.Type} en {HttpUtility.HtmlEncode(lot.Province) ?? "<i>Sin provincia</i>"}</b>" +
-                        $"\n - Valor de la subasta: {lot.Value:N0}€" +
-                        $"\n - Descripción: {(lot.Description == null ? "<i>Sin descripción</i>" : HttpUtility.HtmlEncode(TruncateDescription(lot.Description)))}"
-                    );
-                }
-                
-                return (auction, auctionPart, lotParts);
-            })
-            .SelectMany((data) => {
-                // Chunk size, with a little extra for the "(1 of N)" part
-                var chunkSize = 4050;
-                
-                var messages = new List<string>();
-
-                messages.Add(data.auctionPart);
-
-                for (int i=0; i<data.lotParts.Count; i++) {
-                    var currentPart = data.lotParts[i];
-
-                    if (messages.Last().Length + currentPart.Length > chunkSize) {
-                        // To avoid infinite loops
-                        if (data.auctionPart.Length + currentPart.Length > chunkSize) {
-                            throw new Exception($"Lot description too long: {data.auctionPart}{currentPart}");
-                        }
-
-                        i--;
-                        messages.Add(data.auctionPart);
-                    } else {
-                        messages[messages.Count - 1] += currentPart;
-                    }
-                }
-
-                if (messages.Count > 1) {
-                    for (int i=0; i<messages.Count; i++) {
-                        messages[i] = $"<b><i>({i + 1} de {messages.Count})</i></b> {messages[i]}";
-                    }
-                }
-
-                return messages.Select(messagePart => (data.auction, messagePart));
-            })
-            .Batch(20)
-            .ToList();
-
-        for (var i = 0; i < messageBatches.Count; i++) {
-            foreach(var (auction, message) in messageBatches[i]) {
-                try {
-                    await botClient.SendTextMessageAsync(
-                        chatId: chatId,
-                        text: message,
-                        parseMode: ParseMode.Html,
-                        disableWebPagePreview: true
-                    );
-
-                    // Avoid reaching bot limits per second
-                    await Task.Delay(250);
-                } catch (Exception e) {
-                    throw new Exception($"Telegram error in auction {auction.Id}, Message: {message}", e);
-                }
-            }
-
-            if (i < messageBatches.Count - 1) {
-                // Avoid reaching bot limits per minute
-                await Task.Delay(60000);
-            }
-        }
-    } catch (Exception e) {
-        throw new Exception("Telegram error", e);
-    }
-}
-
-static string TruncateDescription(string description) {
-    const int LIMIT = 100;
-
-    if (description.Length > LIMIT) {
-        return string.Concat(description.AsSpan(0, LIMIT - 3), "...");
-    }
-
-    return description;
+        // Notify
+        await telegramClient.SendAuctionsToTelegram(auctionBatch);
+    };
 }

@@ -1,8 +1,8 @@
-using BoeAuctions.Objects;
+using BoeAuctions.Model.Objects;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
-namespace BoeAuctions;
+namespace BoeAuctions.Model;
 
 public class AuctionsContext : DbContext
 {

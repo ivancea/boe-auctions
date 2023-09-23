@@ -1,4 +1,4 @@
-namespace BoeAuctions.Objects;
+namespace BoeAuctions.Model.Objects;
 
 public class AuctionAuthority {
     public string? Code { get; set; }

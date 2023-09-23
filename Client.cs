@@ -1,7 +1,7 @@
 using System.Web;
 using HtmlAgilityPack;
 using Microsoft.AspNetCore.WebUtilities;
-using BoeAuctions.Objects;
+using BoeAuctions.Model.Objects;
 using System.Globalization;
 
 namespace BoeAuctions;
@@ -61,7 +61,13 @@ public partial class Client : IDisposable
 
             var idQuery = HttpUtility.HtmlDecode(idUrl).Substring(idUrl.IndexOf('?') + 1);
             var idWithElements = QueryHelpers.ParseQuery(idQuery)["id_busqueda"].First();
-            var id = idWithElements.Substring(0, idWithElements.IndexOf('-'));
+
+            if (idWithElements == null)
+            {
+                throw new Exception("No search ID found");
+            }
+
+            var searchId = idWithElements.Substring(0, idWithElements.IndexOf('-'));
 
             var elementCount = ELEMENTS_PER_PAGE;
 
@@ -82,7 +88,7 @@ public partial class Client : IDisposable
                     .Select(link => link.Substring(link.IndexOf('?') + 1))
                     .Select(query => QueryHelpers.ParseQuery(query)["idSub"].First())
                     .Where(id => id != null)
-                    .Select(id => (auctionStatus, id))
+                    .Select(id => (auctionStatus, id!))
                     .ToList();
 
                 if (items.Count == 0)
@@ -98,7 +104,7 @@ public partial class Client : IDisposable
 
                 Console.WriteLine("+{0} items of type {1}", items.Count, auctionStatus);
 
-                html = await LoadHtml($"https://subastas.boe.es/reg/subastas_ava.php?accion=Mas&id_busqueda={id}-{elementCount}-{ELEMENTS_PER_PAGE}");
+                html = await LoadHtml($"https://subastas.boe.es/reg/subastas_ava.php?accion=Mas&id_busqueda={searchId}-{elementCount}-{ELEMENTS_PER_PAGE}");
                 elementCount += ELEMENTS_PER_PAGE;
             }
         }
