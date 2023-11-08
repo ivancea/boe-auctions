@@ -61,7 +61,6 @@ static async Task<List<Auction>> LoadAuctionsFromApi(IEnumerable<string> existin
 
     // Load all auctions not already in the DB
     var auctionTasks = await client.ListAsync()
-        .Take(12)
         .Where(id => seenIds.Add(id.Item2))
         .SelectAwait(async id =>
         {
@@ -121,7 +120,7 @@ static async Task SaveInDatabase(AuctionsContext context, IEnumerable<Auction> a
 static async Task SendToTelegram(AuctionsContext context, IEnumerable<Auction> auctions)
 {
     var telegramClient = new TelegramClient();
-    
+
     foreach (var auctionBatch in auctions.Batch(10))
     {
         // Update auctions as notified, to avoid not sending or resending on errors
@@ -129,7 +128,7 @@ static async Task SendToTelegram(AuctionsContext context, IEnumerable<Auction> a
         Console.WriteLine($"Marking {string.Join(", ", auctionIds)} auctions as notified...");
         await context.Auctions
             .Where(a => auctionIds.Contains(a.Id!))
-            .ExecuteUpdateAsync(a => 
+            .ExecuteUpdateAsync(a =>
                 a.SetProperty(a => a.WasNotified, true)
             );
 

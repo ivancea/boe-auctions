@@ -34,10 +34,10 @@ public partial class Client : IDisposable
     /// <returns>The item references, to be used in further calls</returns>
     public async IAsyncEnumerable<(AuctionStatus, string)> ListAsync(IEnumerable<AuctionStatus>? statuses = null)
     {
-        foreach (var auctionStatus in statuses ?? new[]{ AuctionStatus.Active })
+        foreach (var auctionStatus in statuses ?? new[] { AuctionStatus.Active })
         {
             Console.WriteLine("Obtaining auctions with status {0}", auctionStatus);
-            var query = new Dictionary<string, string>() {
+            var postData = new Dictionary<string, string>() {
                 { "page_hits", $"{ELEMENTS_PER_PAGE}" },
                 { "campo[0]", "SUBASTA.ESTADO" },
                 { "dato[0]", auctionStatus.GetId() },
@@ -49,8 +49,7 @@ public partial class Client : IDisposable
                 { "sort_order[2]", "asc" },
                 { "accion", "Buscar" }
             };
-            var uri = new Uri(QueryHelpers.AddQueryString("https://subastas.boe.es/reg/subastas_ava.php", query));
-            var html = await LoadHtml(uri.ToString());
+            var html = await LoadHtml("https://subastas.boe.es/subastas_ava.php", postData);
 
             var idUrl = html.DocumentNode.SelectSingleNode("//a[contains(@class, 'current')]")?.GetAttributeValue("href", null);
 
@@ -98,13 +97,12 @@ public partial class Client : IDisposable
 
                 foreach (var item in items)
                 {
-                    await Task.Yield();
                     yield return item;
                 }
 
                 Console.WriteLine("+{0} items of type {1}", items.Count, auctionStatus);
 
-                html = await LoadHtml($"https://subastas.boe.es/reg/subastas_ava.php?accion=Mas&id_busqueda={searchId}-{elementCount}-{ELEMENTS_PER_PAGE}");
+                html = await LoadHtml($"https://subastas.boe.es/subastas_ava.php?accion=Mas&id_busqueda={searchId}-{elementCount}-{ELEMENTS_PER_PAGE}");
                 elementCount += ELEMENTS_PER_PAGE;
             }
         }
@@ -223,18 +221,33 @@ public partial class Client : IDisposable
         return result;
     }
 
-    private async Task<HtmlDocument> LoadHtml(string url)
+    private async Task<HtmlDocument> LoadHtml(string url, Dictionary<string, string>? postData = null)
     {
-        for (int i=3; i>0; i--) {
-            try {
-                var response = await _httpClient.GetAsync(url);
+        var request = new HttpRequestMessage()
+        {
+            RequestUri = new Uri(url),
+            Method = postData == null ? HttpMethod.Get : HttpMethod.Post
+        };
+
+        if (postData != null)
+        {
+            request.Content = new FormUrlEncodedContent(postData);
+        }
+
+        for (int i = 3; i > 0; i--)
+        {
+            try
+            {
+                var response = await _httpClient.SendAsync(request);
                 var body = await response.Content.ReadAsStringAsync();
                 var document = new HtmlDocument();
 
                 document.LoadHtml(body);
 
                 return document;
-            } catch (HttpRequestException exc) {
+            }
+            catch (HttpRequestException exc)
+            {
                 Console.WriteLine("Error loading {0}: {1}", url, exc.Message);
             }
         }
