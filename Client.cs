@@ -39,14 +39,10 @@ public partial class Client : IDisposable
             Console.WriteLine("Obtaining auctions with status {0}", auctionStatus);
             var postData = new Dictionary<string, string>() {
                 { "page_hits", $"{ELEMENTS_PER_PAGE}" },
-                { "campo[0]", "SUBASTA.ESTADO" },
+                { "campo[0]", "SUBASTA.ESTADO.CODIGO" },
                 { "dato[0]", auctionStatus.GetId() },
-                { "sort_field[0]", "SUBASTA.FECHA_FIN_YMD" },
+                { "sort_field[0]", "SUBASTA.FECHA_FIN" },
                 { "sort_order[0]", "desc" },
-                { "sort_field[1]", "SUBASTA.FECHA_FIN_YMD" },
-                { "sort_order[1]", "asc" },
-                { "sort_field[2]", "SUBASTA.HORA_FIN" },
-                { "sort_order[2]", "asc" },
                 { "accion", "Buscar" }
             };
             var html = await LoadHtml("https://subastas.boe.es/subastas_ava.php", postData);

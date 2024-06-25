@@ -59,8 +59,16 @@ static async Task<List<Auction>> LoadAuctionsFromApi(IEnumerable<string> existin
 
     var auctions = new List<Auction>();
 
+    var totalAuctionCount = 0;
+    var failedAuctionCount = 0;
+
     // Load all auctions not already in the DB
     var auctionTasks = await client.ListAsync()
+        .Select(id =>
+        {
+            totalAuctionCount++;
+            return id;
+        })
         .Where(id => seenIds.Add(id.Item2))
         .SelectAwait(async id =>
         {
@@ -89,6 +97,7 @@ static async Task<List<Auction>> LoadAuctionsFromApi(IEnumerable<string> existin
             }
             catch (Exception e)
             {
+                failedAuctionCount++;
                 Console.Error.WriteLine($"Error Loading auction with ID '${id}': " + e);
             }
             finally
@@ -99,6 +108,16 @@ static async Task<List<Auction>> LoadAuctionsFromApi(IEnumerable<string> existin
         .ToListAsync();
 
     await Task.WhenAll(auctionTasks);
+
+    if (totalAuctionCount == 0)
+    {
+        throw new Exception("No auctions found! Suspicious!");
+    }
+
+    if (failedAuctionCount == totalAuctionCount)
+    {
+        throw new Exception("All auctions failed to load! Suspicious!");
+    }
 
     return auctions;
 }
