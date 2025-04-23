@@ -39,8 +39,8 @@ public partial class Client : IDisposable
             Console.WriteLine("Obtaining auctions with status {0}", auctionStatus);
             var postData = new Dictionary<string, string>() {
                 { "page_hits", $"{ELEMENTS_PER_PAGE}" },
-                { "campo[0]", "SUBASTA.ESTADO.CODIGO" },
-                { "dato[0]", auctionStatus.GetId() },
+                { "campo[2]", "SUBASTA.ESTADO.CODIGO" },
+                { "dato[2]", auctionStatus.GetId() },
                 { "sort_field[0]", "SUBASTA.FECHA_FIN" },
                 { "sort_order[0]", "desc" },
                 { "accion", "Buscar" }
