@@ -70,15 +70,11 @@ static async Task<List<Auction>> LoadAuctionsFromApi(IEnumerable<string> existin
             return id;
         })
         .Where(id => seenIds.Add(id.Item2))
-        .SelectAwait(async id =>
-        {
-            await semaphore.WaitAsync();
-            return id;
-        })
         .Select(async id =>
         {
             try
             {
+                await semaphore.WaitAsync();
                 var auction = await client.GetAuctionAsync(id.Item1, id.Item2);
 
                 Console.WriteLine("Done: " + auction.Id);
@@ -153,5 +149,5 @@ static async Task SendToTelegram(AuctionsContext context, IEnumerable<Auction> a
 
         // Notify
         await telegramClient.SendAuctionsToTelegram(auctionBatch);
-    };
+    }
 }

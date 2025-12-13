@@ -3,6 +3,7 @@ using BoeAuctions.Model.Objects;
 using dotenv.net.Utilities;
 using MoreLinq.Extensions;
 using Telegram.Bot;
+using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Exceptions;
 
@@ -67,11 +68,11 @@ class TelegramClient
 
                 try
                 {
-                    await botClient.SendTextMessageAsync(
+                    await botClient.SendMessage(
                         chatId: chatId,
                         text: message,
                         parseMode: ParseMode.Html,
-                        disableWebPagePreview: true
+                        linkPreviewOptions: new global::Telegram.Bot.Types.LinkPreviewOptions { IsDisabled = true }
                     );
                 }
                 catch (ApiRequestException e)

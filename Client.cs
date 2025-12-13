@@ -47,9 +47,9 @@ public partial class Client : IDisposable
             };
             var html = await LoadHtml("https://subastas.boe.es/subastas_ava.php", postData);
 
-            var idUrl = html.DocumentNode.SelectSingleNode("//a[contains(@class, 'current')]")?.GetAttributeValue("href", null);
+            var idUrl = html.DocumentNode.SelectSingleNode("//a[contains(@class, 'current')]")?.GetAttributeValue("href", string.Empty);
 
-            if (idUrl == null)
+            if (idUrl == null || idUrl == string.Empty)
             {
                 throw new Exception("No search ID found");
             }
@@ -76,8 +76,8 @@ public partial class Client : IDisposable
                 }
 
                 var items = nodes
-                    .Select(link => link.GetAttributeValue("href", null))
-                    .Where(link => link != null)
+                    .Select(link => link.GetAttributeValue("href", string.Empty))
+                    .Where(link => !string.IsNullOrEmpty(link))
                     .Select(HttpUtility.HtmlDecode)
                     .Select(link => link!)
                     .Select(link => link.Substring(link.IndexOf('?') + 1))
