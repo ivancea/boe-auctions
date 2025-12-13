@@ -1,6 +1,7 @@
 using BoeAuctions.Model.Objects;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using Npgsql;
 
 namespace BoeAuctions.Model;
 
@@ -29,7 +30,13 @@ public class AuctionsContext : DbContext
     }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-        => optionsBuilder
-            .UseNpgsql(_connectionString)
+    {
+        var dataSourceBuilder = new NpgsqlDataSourceBuilder(_connectionString);
+        dataSourceBuilder.EnableDynamicJson();
+        var dataSource = dataSourceBuilder.Build();
+
+        optionsBuilder
+            .UseNpgsql(dataSource)
             .EnableSensitiveDataLogging();
+    }
 }
